@@ -1,0 +1,259 @@
+import pygame
+import random
+import time
+import sys
+import pygame.freetype
+
+# Initialize Pygame
+pygame.init()
+
+# Set up the screen dimensions and create the display window
+screen_width, screen_height = 1920, 1080
+screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
+pygame.display.set_caption('Snake Game')
+
+# Set up fonts
+font = pygame.freetype.SysFont('Comic Sans MS', 30)
+font_big = pygame.freetype.SysFont('Comic Sans MS', 50)
+
+# Set up colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+
+# Game settings
+clock = pygame.time.Clock()
+snake_block = 20
+snake_speed = 15
+score = 0
+game_time = 0
+start_time = 0
+pause_time = 0
+
+# Difficulty settings
+difficulty = {
+    "noob": 5,
+    "easy": 10,
+    "medium": 15,
+    "hard": 20,
+    "god": 30
+}
+
+# Initialize global variables
+game_over = False
+paused = False
+
+def draw_snake(snake_blocks, snake_list, color=GREEN):
+    for block in snake_list:
+        pygame.draw.rect(screen, color, [block[0], block[1], snake_block, snake_block])
+
+def display_score_and_time(score, game_time):
+    score_text = f"Score: {score}"
+    time_text = f"Time: {game_time:.2f} seconds"
+    font.render_to(screen, (10, 10), score_text, WHITE)
+    font.render_to(screen, (10, 50), time_text, WHITE)
+
+def game_over_screen(score, game_time):
+    font_big.render_to(screen, (screen_width // 2 - 150, screen_height // 2 - 50), "GAME OVER", RED)
+    font.render_to(screen, (screen_width // 2 - 100, screen_height // 2 + 50), f"Score: {score}", WHITE)
+    font.render_to(screen, (screen_width // 2 - 100, screen_height // 2 + 90), f"Time: {game_time:.2f} seconds", WHITE)
+    font.render_to(screen, (screen_width // 2 - 200, screen_height // 2 + 150), "Press ESC to Quit", WHITE)
+
+def start_menu():
+    screen.fill(BLACK)
+    font_big.render_to(screen, (screen_width // 2 - 300, screen_height // 2 - 100), "Ai Game By Jackson Rannow", WHITE)
+    font.render_to(screen, (screen_width // 2 - 200, screen_height // 2), "To start the game type out 'Deez nuts' on your keyboard", WHITE)
+    
+    input_box = pygame.Rect(screen_width // 2 - 100, screen_height // 2 + 50, 200, 32)
+    typing = True
+    user_input = ''
+    while typing:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    if user_input.lower() == 'deez nuts':
+                        return True
+                    else:
+                        font.render_to(screen, (screen_width // 2 - 150, screen_height // 2 + 100), "You're incorrect, womp womp. Try again.", RED)
+                        pygame.display.update()
+                        time.sleep(2)
+                        user_input = ''  # Reset input after error
+                elif event.key == pygame.K_BACKSPACE:
+                    user_input = user_input[:-1]
+                else:
+                    user_input += event.unicode
+            pygame.draw.rect(screen, WHITE, input_box, 2)
+            font.render_to(screen, (input_box.x + 5, input_box.y + 5), user_input, WHITE)
+            pygame.display.update()
+
+def level_select():
+    screen.fill(BLACK)
+    font_big.render_to(screen, (screen_width // 2 - 150, screen_height // 2 - 100), "Select Difficulty", WHITE)
+    
+    options = ["Noob", "Easy", "Medium", "Hard", "God Mode"]
+    y_offset = 100
+    for i, option in enumerate(options):
+        font.render_to(screen, (screen_width // 2 - 100, screen_height // 2 + y_offset), option, WHITE)
+        y_offset += 50
+
+    pygame.display.update()
+
+    level_selected = False
+    while not level_selected:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:  # "Noob"
+                    return "noob"
+                if event.key == pygame.K_2:  # "Easy"
+                    return "easy"
+                if event.key == pygame.K_3:  # "Medium"
+                    return "medium"
+                if event.key == pygame.K_4:  # "Hard"
+                    return "hard"
+                if event.key == pygame.K_5:  # "God Mode"
+                    return "god"
+
+def spawn_snake_monsters(num_monsters):
+    monsters = []
+    for _ in range(num_monsters):
+        monster_x = round(random.randrange(0, screen_width - snake_block) / 20.0) * 20.0
+        monster_y = round(random.randrange(0, screen_height - snake_block) / 20.0) * 20.0
+        monster_length = random.randint(3, 6)  # Random length for snake monsters
+        monster = [(monster_x + i * snake_block, monster_y) for i in range(monster_length)]
+        monsters.append(monster)
+    return monsters
+
+# Update this function to make the zombies move randomly
+def move_zombies(monsters):
+    for monster in monsters:
+        direction = random.choice(['left', 'right', 'up', 'down'])  # Random direction for each monster
+
+        if direction == 'left':
+            for i in range(len(monster)):
+                monster[i] = (monster[i][0] - snake_block, monster[i][1])  # Move left
+        elif direction == 'right':
+            for i in range(len(monster)):
+                monster[i] = (monster[i][0] + snake_block, monster[i][1])  # Move right
+        elif direction == 'up':
+            for i in range(len(monster)):
+                monster[i] = (monster[i][0], monster[i][1] - snake_block)  # Move up
+        elif direction == 'down':
+            for i in range(len(monster)):
+                monster[i] = (monster[i][0], monster[i][1] + snake_block)  # Move down
+
+def game_loop(level):
+    global score, game_time, start_time, pause_time, snake_speed, paused
+    snake_speed = difficulty[level]
+    
+    x1 = screen_width // 2
+    y1 = screen_height // 2
+    x1_change = 0
+    y1_change = 0
+
+    snake_List = []
+    Length_of_snake = 1
+
+    foodx = round(random.randrange(0, screen_width - snake_block) / 20.0) * 20.0
+    foody = round(random.randrange(0, screen_height - snake_block) / 20.0) * 20.0
+
+    monsters = spawn_snake_monsters(5)  # Spawn 5 snake monsters
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    x1_change = -snake_block
+                    y1_change = 0
+                elif event.key == pygame.K_RIGHT:
+                    x1_change = snake_block
+                    y1_change = 0
+                elif event.key == pygame.K_UP:
+                    y1_change = -snake_block
+                    x1_change = 0
+                elif event.key == pygame.K_DOWN:
+                    y1_change = snake_block
+                    x1_change = 0
+                elif event.key == pygame.K_SPACE:
+                    paused = not paused
+                    if paused:
+                        pause_time = time.time()
+                    else:
+                        start_time += time.time() - pause_time
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+
+        if not paused:
+            if x1 >= screen_width or x1 < 0 or y1 >= screen_height or y1 < 0:
+                game_over_screen(score, game_time)
+                pygame.display.update()
+                time.sleep(2)
+                running = False
+
+            x1 += x1_change
+            y1 += y1_change
+            screen.fill(BLACK)
+
+            snake_Head = []
+            snake_Head.append(x1)
+            snake_Head.append(y1)
+            snake_List.append(snake_Head)
+            if len(snake_List) > Length_of_snake:
+                del snake_List[0]
+
+            for block in snake_List[:-1]:
+                if block == snake_Head:
+                    game_over_screen(score, game_time)
+                    pygame.display.update()
+                    time.sleep(2)
+                    running = False
+
+            draw_snake(snake_block, snake_List)
+            display_score_and_time(score, game_time)
+
+            if x1 == foodx and y1 == foody:
+                foodx = round(random.randrange(0, screen_width - snake_block) / 20.0) * 20.0
+                foody = round(random.randrange(0, screen_height - snake_block) / 20.0) * 20.0
+                Length_of_snake += 1
+                score += 10
+
+            pygame.draw.rect(screen, RED, [foodx, foody, snake_block, snake_block])
+
+            # Move zombies (monsters)
+            move_zombies(monsters)
+
+            # Draw snake monsters
+            for monster in monsters:
+                draw_snake(snake_block, monster, BLUE)
+
+                # Check for collision with monster
+                if (x1, y1) in monster:
+                    game_over_screen(score, game_time)
+                    pygame.display.update()
+                    time.sleep(2)
+                    running = False
+
+            pygame.display.update()
+
+            clock.tick(snake_speed)
+            if not paused:
+                game_time = time.time() - start_time
+        else:
+            font.render_to(screen, (screen_width // 2 - 150, screen_height // 2), "Game Paused", WHITE)
+            pygame.display.update()
+
+if start_menu():
+    level = level_select()  # This part allows the user to select a difficulty
+    game_loop(level)
